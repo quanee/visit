@@ -7,9 +7,6 @@ import (
 	"net"
 )
 
-func (n *Node) Ping()    {}
-func (n *Node) Pong()    {}
-func (n *Node) Publish() {}
 func (n *Node) TickMsg() {
 	go n.tickMsg()
 }
@@ -36,6 +33,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	n.port = uint16(updaddr.Port)
 	conn, err := net.ListenUDP("udp", updaddr)
 	if err != nil {
 		log.Fatal(err)

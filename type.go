@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"net/netip"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -69,7 +70,7 @@ func (n *Node) tickMsg() {
 			return
 		case <-ticker.C:
 			for _, node := range n.nodes {
-				_ = node
+				n.Ping(node)
 			}
 		}
 	}
@@ -122,7 +123,10 @@ func (n *Node) processMsg() {
 				n.ID = moot.ID
 				log.Println("add successful, id: ", n.ID)
 			case PING:
+				log.Printf("%v: %v\n", msg.AddrPort, string(msg.Payload))
+				n.Pong(msg.AddrPort)
 			case PONG:
+				log.Printf("%v: %v\n", msg.AddrPort, string(msg.Payload))
 			case PUBLISH:
 			case SYNC:
 			}
@@ -173,4 +177,39 @@ func (n *Node) Meet(mip, mport string) error {
 		return err
 	}
 	return nil
+}
+
+func (n *Node) Ping(node *Node) {
+	port := strconv.Itoa(int(node.port))
+	addr, err := net.ResolveUDPAddr("udp", node.ip+":"+port)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	ping := Msg{MsgType: PING, AddrPort: addr.AddrPort(), Payload: []byte("PING")}
+	body, err := json.Marshal(ping)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	if _, err := n.conn.WriteToUDP(body, addr); err != nil {
+		log.Println(err)
+		return
+	}
+}
+
+func (n *Node) Pong(port netip.AddrPort) {
+	pong := Msg{
+		MsgType: PONG,
+		Payload: []byte("PONG"),
+	}
+	body, err := json.Marshal(pong)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	if _, err := n.conn.WriteToUDPAddrPort(body, port); err != nil {
+		log.Println(err)
+		return
+	}
 }
